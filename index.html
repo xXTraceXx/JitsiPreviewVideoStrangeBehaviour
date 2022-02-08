@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://code.jquery.com/jquery-3.6.0.slim.min.js" integrity="sha256-u7e5khyithlIdTpu22PHhENmPcRdFiHRjhAuHcs05RI=" crossorigin="anonymous"></script>
+    <script src="scripts/lib-jitsi-meet.min.js"></script>
+    <title>Document</title>
+</head>
+<body>
+    <h1>Jitsi Test2</h1>
+    <button id="startJitsi">Start Jitsi</button>
+    <button id="startPreview">Start Preview</button>
+
+    <div id="previewTest">
+        <video id="sb-video" autoplay muted playsinline></video>
+    </div>
+</body>
+<style>
+    #previewTest {
+        width: 200px;
+        height: 200px;
+    }
+</style>
+<script>
+$(async () => {
+    $('#startJitsi').click(joinJitsiRoom);
+    $('#startPreview').click(showPreview);
+
+    const options = {
+        hosts: {
+            domain: 'meet.jitsi',
+            muc: 'muc.meet.jitsi'
+        },
+        bosh: '{yourserver}'
+    }
+
+    JitsiMeetJS.init();
+    JitsiMeetJS.setLogLevel(JitsiMeetJS.logLevels.ERROR);
+    const jitsiConnect = new JitsiMeetJS.JitsiConnection(null, null, options);
+    let room;
+    
+    jitsiConnect.addEventListener(JitsiMeetJS.events.connection.CONNECTION_ESTABLISHED, () => {
+        console.log('jitsi connected...');
+    });
+
+    jitsiConnect.addEventListener(JitsiMeetJS.events.connection.CONNECTION_FAILED, () => console.log('jitsi connection failed'));
+    jitsiConnect.addEventListener(JitsiMeetJS.events.connection.CONNECTION_DISCONNECTED, () => console.log('jitsi connection disconnected'));
+
+    jitsiConnect.connect();
+
+    async function showPreview(){
+        navigator.mediaDevices.getUserMedia({video: { aspectRatio: 16 / 9 }, audio: true })
+            .then(async (mediaStream) => {
+                let existingVideoElement = $('#sb-video')[0];
+                existingVideoElement.srcObject = mediaStream;
+                })
+            .catch(console.error);
+    }
+
+    async function joinJitsiRoom(){
+        room = await jitsiConnect.initJitsiConference('test', { openBridgeChannel: true, p2p: { enabled: false } });    
+
+        room.join();
+        console.log(room.myUserId());
+        
+        room.on(JitsiMeetJS.events.conference.TRACK_ADDED, (track) => {
+            console.log('new tracks');
+            console.log(track);
+            console.log(track.getParticipantId());
+        });
+        
+        room.on(JitsiMeetJS.events.conference.USER_JOINED, (id, user) => {
+            console.log('user joined');
+            console.log(id);
+            console.log(user);
+        });
+
+        await JitsiMeetJS.createLocalTracks({devices: ['video', 'audio']})
+            .then((tracks) => {
+                tracks.forEach(element => room.addTrack(element));
+            })
+            .catch(console.error);
+    }
+})    
+</script>
+</html>
